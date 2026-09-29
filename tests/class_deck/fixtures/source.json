@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "deck_name": "Chinese Classes",
+  "classes": [
+    {
+      "date": "2026-09-22",
+      "folder_id": "folder-22",
+      "approved": true,
+      "source_files": [],
+      "notes": [
+        {
+          "type": "vocabulary",
+          "chinese": "感冒",
+          "traditional": "感冒",
+          "pinyin": "gǎnmào",
+          "meaning": "common cold",
+          "example": "我感冒了。",
+          "example_translation": "I caught a cold.",
+          "image": "a/Bài học 1.JPG",
+          "audio": "audio/cold.mp3"
+        },
+        {
+          "type": "sentence",
+          "chinese": "你觉得这个菜怎么样？",
+          "pinyin": "Nǐ juéde zhège cài zěnmeyàng?",
+          "meaning": "What do you think of this dish?",
+          "answer": "太辣了。"
+        },
+        {
+          "type": "listening",
+          "chinese": "这是没有确认的录音。",
+          "pinyin": "Zhè shì méiyǒu quèrèn de lùyīn.",
+          "meaning": "This recording is unconfirmed.",
+          "audio": {
+            "source_name": "audio/unknown.mp3",
+            "confidence": "ambiguous"
+          }
+        }
+      ],
+      "issues": {"unmatched_audio": ["unknown.mp3"]}
+    },
+    {
+      "date": "2026-09-29",
+      "folder_id": "folder-29",
+      "approved": true,
+      "source_files": [],
+      "notes": [
+        {
+          "type": "vocabulary",
+          "chinese": "发烧",
+          "pinyin": "fāshāo",
+          "meaning": "fever",
+          "image": "b/Bài học 1.JPG"
+        },
+        {
+          "type": "sentence",
+          "chinese": "你应该吃药。",
+          "pinyin": "Nǐ yīnggāi chī yào.",
+          "meaning": "You should take medicine.",
+          "audio": "audio/pattern.mp3"
+        },
+        {
+          "type": "listening",
+          "chinese": "你今天觉得怎么样？",
+          "pinyin": "Nǐ jīntiān juéde zěnmeyàng?",
+          "meaning": "How do you feel today?",
+          "audio": "audio/dialogue.mp3"
+        }
+      ],
+      "issues": {}
+    }
+  ]
+}
