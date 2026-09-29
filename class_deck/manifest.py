@@ -96,6 +96,10 @@ def merge_manifest(previous: ClassManifest | None, incoming: ClassSource) -> Mer
             merged[class_date] = discovered
             continue
         if _source_fingerprint(old) == _source_fingerprint(discovered):
+            if discovered.approved and discovered.to_dict() != old.to_dict():
+                changed_dates.append(class_date)
+                merged[class_date] = discovered
+                continue
             unchanged_dates.append(class_date)
             merged[class_date] = old
             continue

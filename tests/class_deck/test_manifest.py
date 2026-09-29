@@ -63,6 +63,20 @@ def test_unchanged_class_reuses_reviewed_content():
     assert result.source.classes[0].notes[0].chinese == "感冒"
 
 
+def test_approved_review_correction_replaces_content_when_files_are_unchanged():
+    original = parsed(source_for())
+    previous = ClassManifest.from_source(original)
+    corrected = source_for()
+    corrected["classes"][0]["notes"][0]["meaning"] = "to catch a cold; common cold"
+
+    result = merge_manifest(previous, parsed(corrected))
+
+    assert result.changed_classes == ("2026-09-22",)
+    assert result.unchanged_classes == ()
+    assert result.source.classes[0].notes[0].meaning == "to catch a cold; common cold"
+    assert note_guid(result.source.classes[0].notes[0]) == note_guid(original.classes[0].notes[0])
+
+
 def test_added_class_preserves_old_keys_and_guids():
     original = parsed(source_for())
     previous = ClassManifest.from_source(original)
