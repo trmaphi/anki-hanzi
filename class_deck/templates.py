@@ -31,16 +31,37 @@ hr { border: 0; border-top: 1px solid #ead7df; margin: 18px 0; }
 """
 
 
-BACK_COMMON = """
+BACK_VOCABULARY = """
 <hr>
 <div class="hanzi">{{Chinese}}</div>
+{{#Traditional}}<div class="example">{{Traditional}}</div>{{/Traditional}}
 {{#Pinyin}}<div class="pinyin">{{Pinyin}}</div>{{/Pinyin}}
 {{#Meaning}}<div class="meaning">{{Meaning}}</div>{{/Meaning}}
 {{#Image}}<div>{{Image}}</div>{{/Image}}
 {{#Example}}<div class="example">{{Example}}</div>{{/Example}}
 {{#ExampleTranslation}}<div class="example">{{ExampleTranslation}}</div>{{/ExampleTranslation}}
+{{#Audio}}<div>{{Audio}}</div>{{/Audio}}
+<div class="meta">Class {{ClassDate}}</div>
+"""
+
+
+BACK_SENTENCE = """
+<hr>
+<div class="hanzi">{{Chinese}}</div>
+{{#Pinyin}}<div class="pinyin">{{Pinyin}}</div>{{/Pinyin}}
+{{#Meaning}}<div class="meaning">{{Meaning}}</div>{{/Meaning}}
 {{#Answer}}<div class="answer">{{Answer}}</div>{{/Answer}}
 {{#Explanation}}<div class="example">{{Explanation}}</div>{{/Explanation}}
+{{#Audio}}<div>{{Audio}}</div>{{/Audio}}
+<div class="meta">Class {{ClassDate}}</div>
+"""
+
+
+BACK_LISTENING = """
+<hr>
+<div class="hanzi">{{Chinese}}</div>
+{{#Pinyin}}<div class="pinyin">{{Pinyin}}</div>{{/Pinyin}}
+{{#Meaning}}<div class="meaning">{{Meaning}}</div>{{/Meaning}}
 {{#Audio}}<div>{{Audio}}</div>{{/Audio}}
 <div class="meta">Class {{ClassDate}}</div>
 """
@@ -70,17 +91,17 @@ def build_models() -> dict[str, genanki.Model]:
             {
                 "name": "Recognize",
                 "qfmt": '<div class="hanzi">{{Chinese}}</div>{{#Audio}}<div>{{Audio}}</div>{{/Audio}}',
-                "afmt": "{{FrontSide}}" + BACK_COMMON,
+                "afmt": "{{FrontSide}}" + BACK_VOCABULARY,
             },
             {
                 "name": "Produce",
                 "qfmt": '<div class="prompt">{{Meaning}}</div>{{#Image}}<div>{{Image}}</div>{{/Image}}',
-                "afmt": "{{FrontSide}}" + BACK_COMMON,
+                "afmt": "{{FrontSide}}" + BACK_VOCABULARY,
             },
             {
                 "name": "Listen",
                 "qfmt": "{{#Audio}}<div>{{Audio}}</div>{{/Audio}}",
-                "afmt": "{{FrontSide}}" + BACK_COMMON,
+                "afmt": "{{FrontSide}}" + BACK_VOCABULARY,
             },
         ],
         css=CSS,
@@ -95,12 +116,12 @@ def build_models() -> dict[str, genanki.Model]:
             {
                 "name": "Produce",
                 "qfmt": '<div class="prompt">{{Meaning}}</div>',
-                "afmt": "{{FrontSide}}" + BACK_COMMON,
+                "afmt": "{{FrontSide}}" + BACK_SENTENCE,
             },
             {
                 "name": "Listen",
                 "qfmt": "{{#Audio}}<div>{{Audio}}</div>{{/Audio}}",
-                "afmt": "{{FrontSide}}" + BACK_COMMON,
+                "afmt": "{{FrontSide}}" + BACK_SENTENCE,
             },
         ],
         css=CSS,
@@ -113,7 +134,7 @@ def build_models() -> dict[str, genanki.Model]:
             {
                 "name": "Listen",
                 "qfmt": "{{#Audio}}<div>{{Audio}}</div>{{/Audio}}",
-                "afmt": "{{FrontSide}}" + BACK_COMMON,
+                "afmt": "{{FrontSide}}" + BACK_LISTENING,
             }
         ],
         css=CSS,

@@ -1,4 +1,5 @@
 import json
+import re
 import sqlite3
 import zipfile
 from pathlib import Path
@@ -7,6 +8,7 @@ import pytest
 
 from class_deck.models import ClassSource
 from class_deck.package import MODEL_IDS, build_package
+from class_deck.templates import build_models
 
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -78,6 +80,20 @@ def test_sentence_and_listening_models_have_fixed_ordinals(built, tmp_path):
         ("Listen", 1),
     ]
     assert [(item["name"], item["ord"]) for item in listening["tmpls"]] == [("Listen", 0)]
+
+
+def test_every_template_reference_names_a_field_on_its_model():
+    for model_name, model in build_models().items():
+        fields = {field["name"] for field in model.fields}
+        references = set()
+        for template in model.templates:
+            markup = template["qfmt"] + template["afmt"]
+            references.update(re.findall(r"{{[#/^]?([^}:]+)}}", markup))
+
+        assert references <= fields | {"FrontSide"}, (
+            f"{model_name} references fields it does not define: "
+            f"{sorted(references - fields - {'FrontSide'})}"
+        )
 
 
 def test_ambiguous_audio_is_warning_not_card(built, tmp_path):
