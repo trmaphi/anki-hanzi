@@ -4,6 +4,7 @@ import hashlib
 import os
 import shutil
 import tempfile
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -141,7 +142,7 @@ def build_package(source: ClassSource, media_root: Path, output: Path) -> BuildR
         os.close(descriptor)
         temporary = Path(temporary_name)
         try:
-            package.write_to_file(str(temporary), timestamp=946684800.0)
+            package.write_to_file(str(temporary), timestamp=time.time())
             os.replace(temporary, output)
         finally:
             if temporary.exists():

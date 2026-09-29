@@ -96,6 +96,14 @@ def test_every_template_reference_names_a_field_on_its_model():
         )
 
 
+def test_package_models_are_timestamped_as_a_current_update(built, tmp_path):
+    output, _ = built
+    database, _ = collection_rows(output, tmp_path)
+    models = json.loads(database.execute("select models from col").fetchone()[0])
+
+    assert all(model["mod"] > 946684800 for model in models.values())
+
+
 def test_ambiguous_audio_is_warning_not_card(built, tmp_path):
     output, report = built
     database, _ = collection_rows(output, tmp_path)
