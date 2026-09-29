@@ -3,6 +3,7 @@ import sqlite3
 import zipfile
 from pathlib import Path
 
+import class_deck.cli as cli
 from class_deck.cli import main
 from class_deck.identity import class_deck_id, class_deck_name
 from class_deck.package import MODEL_IDS
@@ -55,6 +56,21 @@ def test_check_reports_validation_paths(tmp_path, capsys):
     assert "classes[0].date" in capsys.readouterr().err
 
 
+def test_check_reports_missing_media_with_note_path(tmp_path, capsys):
+    source = json.loads((FIXTURES / "source.json").read_text())
+    missing_media = tmp_path / "empty-media"
+    missing_media.mkdir()
+    reviewed = tmp_path / "reviewed.json"
+    reviewed.write_text(json.dumps(source, ensure_ascii=False))
+
+    exit_code = main(["check", "--source", str(reviewed), "--media", str(missing_media)])
+
+    assert exit_code == 2
+    error = capsys.readouterr().err
+    assert "classes[0].notes[0].image" in error
+    assert "a/Bài học 1.JPG" in error
+
+
 def test_build_writes_package_manifest_and_report(tmp_path):
     exit_code, output, state = run_build(tmp_path)
 
@@ -82,6 +98,20 @@ def test_failed_build_does_not_replace_previous_package(tmp_path):
     assert not (state / "manifest.json").exists()
 
 
+def test_failed_state_write_does_not_replace_previous_package(tmp_path, monkeypatch):
+    output = tmp_path / "Chinese-Classes.apkg"
+    output.write_bytes(b"previous package")
+
+    def fail_state_write(path, value):
+        raise OSError("state is read-only")
+
+    monkeypatch.setattr(cli, "_atomic_json", fail_state_write)
+    exit_code, _, _ = run_build(tmp_path, output=output)
+
+    assert exit_code == 2
+    assert output.read_bytes() == b"previous package"
+
+
 def test_build_accepts_unused_listening_model(tmp_path):
     source = json.loads((FIXTURES / "source.json").read_text())
     for class_record in source["classes"]:
@@ -96,6 +126,21 @@ def test_build_accepts_unused_listening_model(tmp_path):
     assert exit_code == 0
     _, ordinals, _ = inspect_ids(output, tmp_path)
     assert MODEL_IDS["listening"] not in ordinals
+
+
+def test_build_report_records_progress_preservation_invariants(tmp_path):
+    exit_code, _, state = run_build(tmp_path)
+
+    assert exit_code == 0
+    validation = json.loads((state / "build-report.json").read_text())["validation"]
+    assert validation["template_ordinals"] == {
+        str(MODEL_IDS["vocabulary"]): [0, 1, 2],
+        str(MODEL_IDS["sentence"]): [0, 1],
+        str(MODEL_IDS["listening"]): [0],
+    }
+    assert validation["deck_ids"]["Chinese Classes"] == class_deck_id("Chinese Classes")
+    assert validation["tags_valid"] is True
+    assert validation["media_references_valid"] is True
 
 
 def test_second_build_adds_class_without_changing_existing_ids(tmp_path):
