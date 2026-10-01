@@ -5,13 +5,17 @@ import os
 import shutil
 import tempfile
 import time
+import re
+import sqlite3
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
 import genanki
+import chevron
 
 from .identity import PARENT_DECK, class_deck_id, class_deck_name, media_name, note_guid, note_key
-from .models import BaseNote, ClassSource, ListeningNote, MediaRef, SentenceNote, VocabularyNote
+from .models import BaseNote, ClassRecord, ClassSource, ListeningNote, MediaRef, Note, SentenceNote, VocabularyNote
 from .templates import MODEL_IDS, build_models
 from .assets import build_asset_manifest, stage_assets
 
@@ -24,6 +28,15 @@ class BuildReport:
     media: tuple[str, ...]
     warnings: tuple[str, ...]
     output_sha256: str
+
+
+class PackageBuildError(ValueError):
+    """The package would contain an unusable card or inconsistent count."""
+
+
+def ordered_notes(record: ClassRecord) -> tuple[Note, ...]:
+    rank = {"vocabulary": 0, "sentence": 1, "listening": 2}
+    return tuple(note for _, note in sorted(enumerate(record.notes), key=lambda item: (rank[item[1].type], item[0])))
 
 
 def _approved_media(value: MediaRef | str | None) -> tuple[str | None, str | None]:
@@ -101,6 +114,29 @@ def _fields_for(note: BaseNote, image: str, audio: str) -> list[str]:
     raise TypeError(f"Unsupported note: {type(note).__name__}")
 
 
+def _validate_fronts(anki_note: genanki.Note) -> None:
+    values = {field["name"]: value for field, value in zip(anki_note.model.fields, anki_note.fields)}
+    for card in anki_note.cards:
+        rendered = chevron.render(anki_note.model.templates[card.ord]["qfmt"], values)
+        visible = re.sub(r"<(script|style)\b[^>]*>[\s\S]*?</\1>", "", rendered, flags=re.IGNORECASE)
+        visible = re.sub(r"<[^>]+>", "", visible)
+        if not visible.strip():
+            raise PackageBuildError(
+                f"blank front for {anki_note.guid} template {card.ord}"
+            )
+
+
+def _collection_counts(path: Path) -> tuple[int, int]:
+    with zipfile.ZipFile(path) as archive, tempfile.TemporaryDirectory(prefix="class-deck-count-") as directory:
+        name = next(item for item in archive.namelist() if item.startswith("collection.anki"))
+        collection = Path(directory) / name
+        collection.write_bytes(archive.read(name))
+        with sqlite3.connect(collection) as database:
+            notes = database.execute("select count(*) from notes").fetchone()[0]
+            cards = database.execute("select count(*) from cards").fetchone()[0]
+    return notes, cards
+
+
 def build_package(source: ClassSource, media_root: Path, output: Path) -> BuildReport:
     media_root = Path(media_root)
     output = Path(output)
@@ -109,7 +145,6 @@ def build_package(source: ClassSource, media_root: Path, output: Path) -> BuildR
     warnings: list[str] = []
     media_files: dict[str, Path] = {}
     note_count = 0
-    card_count = 0
 
     parent = genanki.Deck(class_deck_id(PARENT_DECK), PARENT_DECK)
     decks: list[genanki.Deck] = [parent]
@@ -126,7 +161,8 @@ def build_package(source: ClassSource, media_root: Path, output: Path) -> BuildR
             deck_name = class_deck_name(class_record.date)
             deck = genanki.Deck(class_deck_id(deck_name), deck_name)
             decks.append(deck)
-            for note in class_record.notes:
+            due = 1
+            for note in ordered_notes(class_record):
                 image = _media_field(note, "image", note.image, media_root, staging, media_files, warnings)
                 audio = _media_field(note, "audio", note.audio, media_root, staging, media_files, warnings)
                 if isinstance(note, ListeningNote) and not audio:
@@ -138,15 +174,12 @@ def build_package(source: ClassSource, media_root: Path, output: Path) -> BuildR
                     fields=_fields_for(note, image, audio),
                     tags=[f"Class::{note.date}", f"Type::{note.type.title()}"],
                     guid=note_guid(note),
+                    due=due,
                 )
+                _validate_fronts(anki_note)
                 deck.add_note(anki_note)
                 note_count += 1
-                if isinstance(note, VocabularyNote):
-                    card_count += 3 + bool(audio)
-                elif isinstance(note, SentenceNote):
-                    card_count += 1 + bool(audio)
-                else:
-                    card_count += 1
+                due += 1
 
         package = genanki.Package(decks, media_files=[str(path) for _, path in sorted(media_files.items())])
         descriptor, temporary_name = tempfile.mkstemp(prefix=f".{output.name}.", dir=output.parent)
@@ -159,10 +192,13 @@ def build_package(source: ClassSource, media_root: Path, output: Path) -> BuildR
             if temporary.exists():
                 temporary.unlink()
 
+    actual_notes, actual_cards = _collection_counts(output)
+    if actual_notes != note_count:
+        raise PackageBuildError(f"generated note count changed: expected {note_count}, found {actual_notes}")
     output_hash = hashlib.sha256(output.read_bytes()).hexdigest()
     return BuildReport(
         notes=note_count,
-        cards=card_count,
+        cards=actual_cards,
         decks=len(decks),
         media=tuple(sorted(media_files)),
         warnings=tuple(warnings),
@@ -170,4 +206,4 @@ def build_package(source: ClassSource, media_root: Path, output: Path) -> BuildR
     )
 
 
-__all__ = ["MODEL_IDS", "BuildReport", "build_package"]
+__all__ = ["MODEL_IDS", "BuildReport", "PackageBuildError", "build_package", "ordered_notes"]

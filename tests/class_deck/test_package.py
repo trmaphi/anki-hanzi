@@ -83,6 +83,20 @@ def test_sentence_and_listening_models_have_fixed_ordinals(built, tmp_path):
     assert [(item["name"], item["ord"]) for item in listening["tmpls"]] == [("Listen", 0)]
 
 
+def test_package_models_have_full_fields_and_explicit_requirements(built, tmp_path):
+    output, _ = built
+    database, _ = collection_rows(output, tmp_path)
+    models = json.loads(database.execute("select models from col").fetchone()[0])
+    vocabulary = models[str(MODEL_IDS["vocabulary"])]
+
+    assert [field["name"] for field in vocabulary["flds"]] == [
+        "Chinese", "Traditional", "Pinyin", "Meaning", "Example", "ExampleTranslation",
+        "Image", "Audio", "ClassDate", "SourceRef", "Zhuyin", "PartOfSpeech",
+        "Definitions", "Breakdown", "Radical", "HskLevel", "Frequency",
+    ]
+    assert vocabulary["req"] == [[0, "all", [0]], [1, "all", [0]], [2, "all", [7]], [3, "all", [0]]]
+
+
 def test_every_template_reference_names_a_field_on_its_model():
     for model_name, model in build_models().items():
         fields = {field["name"] for field in model.fields}

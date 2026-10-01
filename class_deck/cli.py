@@ -15,7 +15,8 @@ from typing import Any, Sequence
 from .identity import PARENT_DECK, class_deck_id, class_deck_name, note_guid
 from .manifest import ClassManifest, merge_manifest
 from .models import ClassSource, MediaRef, SourceValidationError
-from .package import BuildReport, MODEL_IDS, build_package
+from .package import BuildReport, MODEL_IDS, PackageBuildError, build_package
+from .template_bundle import load_template_bundle
 from .audio import AudioError, export_segment
 from .transcribe import FasterWhisperTranscriber, TranscriptionError, transcribe_recording
 from .review import recording_review_dict
@@ -93,6 +94,9 @@ def inspect_package(
                         row[0] for row in database.execute("select distinct mid from notes")
                     }
                     note_rows = database.execute("select guid, flds, tags from notes").fetchall()
+                    card_rows = database.execute(
+                        "select n.guid, n.mid, c.did, c.ord, c.due from cards c join notes n on n.id=c.nid"
+                    ).fetchall()
                     models = json.loads(database.execute("select models from col").fetchone()[0])
                     decks = json.loads(database.execute("select decks from col").fetchone()[0])
     except (zipfile.BadZipFile, KeyError, StopIteration, sqlite3.DatabaseError) as exc:
@@ -121,6 +125,16 @@ def inspect_package(
     }
     if invalid_templates:
         raise PackageValidationError(f"fixed template ordinals changed: {invalid_templates}")
+    bundle = load_template_bundle()
+    model_name_by_id = {MODEL_IDS[name]: name for name in MODEL_IDS}
+    for model_id in note_model_ids:
+        model = models[str(model_id)]
+        definition = bundle.models[model_name_by_id[model_id]]
+        if tuple(field["name"] for field in model["flds"]) != definition.fields:
+            raise PackageValidationError(f"field schema changed for model {model_id}")
+        expected_req = [[item.req[0], item.req[1], list(item.req[2])] for item in definition.templates]
+        if model["req"] != expected_req:
+            raise PackageValidationError(f"template requirements changed for model {model_id}")
     deck_ids = {
         value["name"]: int(key)
         for key, value in decks.items()
@@ -129,6 +143,7 @@ def inspect_package(
     if source is not None:
         expected_deck_ids = {PARENT_DECK: class_deck_id(PARENT_DECK)}
         expected_tags = {}
+        expected_note_decks = {}
         for record in source.classes:
             if not record.approved:
                 continue
@@ -139,12 +154,24 @@ def inspect_package(
                     f"Class::{note.date}",
                     f"Type::{note.type.title()}",
                 }
+                expected_note_decks[note_guid(note)] = class_deck_id(name)
         if deck_ids != expected_deck_ids:
             raise PackageValidationError("deterministic deck IDs or deck set changed")
         for guid, _, tags in note_rows:
             required = expected_tags.get(guid)
             if required is None or not required <= set(tags.split()):
                 raise PackageValidationError(f"required tags missing for note {guid}")
+        for guid, _, deck_id, _, _ in card_rows:
+            if expected_note_decks.get(guid) != deck_id:
+                raise PackageValidationError(f"dated deck assignment changed for note {guid}")
+    type_rank = {MODEL_IDS["vocabulary"]: 0, MODEL_IDS["sentence"]: 1, MODEL_IDS["listening"]: 2}
+    by_deck: dict[int, dict[str, tuple[int, int]]] = {}
+    for guid, model_id, deck_id, _, due in card_rows:
+        by_deck.setdefault(deck_id, {}).setdefault(guid, (due, type_rank[model_id]))
+    for deck_id, notes_by_guid in by_deck.items():
+        ranks = [rank for _, rank in sorted(notes_by_guid.values())]
+        if ranks != sorted(ranks):
+            raise PackageValidationError(f"new-card category ordering changed in deck {deck_id}")
     mapped_names = set(media_map.values())
     referenced_names = set()
     for _, fields, _ in note_rows:
@@ -326,7 +353,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if arguments.command == "transcribe":
             return _transcribe(arguments)
         return _build(arguments)
-    except (AudioError, SourceValidationError, PackageValidationError, TranscriptionError, OSError) as exc:
+    except (AudioError, PackageBuildError, SourceValidationError, PackageValidationError, TranscriptionError, OSError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 2
 
