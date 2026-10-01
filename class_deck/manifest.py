@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Mapping
 
 from .identity import note_key
-from .models import ClassRecord, ClassSource, SourceValidationError
+from .models import ClassRecord, ClassSource, ListeningNote, SourceValidationError
 
 
 def _source_fingerprint(record: ClassRecord) -> tuple[Any, ...]:
@@ -118,3 +118,37 @@ def merge_manifest(previous: ClassManifest | None, incoming: ClassSource) -> Mer
         missing_classes=tuple(missing_dates),
         unchanged_classes=tuple(sorted(unchanged_dates)),
     )
+
+
+def migrate_source_identities(source: ClassSource) -> ClassSource:
+    """Upgrade a legacy reviewed source without changing any released note GUID."""
+    if source.version == 2:
+        return source
+    classes: list[ClassRecord] = []
+    for record in source.classes:
+        notes = []
+        type_counts: dict[str, int] = {}
+        for note in record.notes:
+            type_counts[note.type] = type_counts.get(note.type, 0) + 1
+            ordinal = type_counts[note.type]
+            seed = note_key(note)
+            if isinstance(note, ListeningNote):
+                recording_id = f"{record.folder_id}:recording:{ordinal:04d}"
+                notes.append(
+                    replace(
+                        note,
+                        identity_seed=seed,
+                        recording_id=recording_id,
+                        segment_id="segment:0001",
+                    )
+                )
+            else:
+                notes.append(
+                    replace(
+                        note,
+                        item_id=f"{record.folder_id}:{note.type}:{ordinal:04d}",
+                        identity_seed=seed,
+                    )
+                )
+        classes.append(replace(record, notes=tuple(notes)))
+    return ClassSource(version=2, deck_name=source.deck_name, classes=tuple(classes))

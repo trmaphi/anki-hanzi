@@ -112,6 +112,8 @@ class BaseNote:
     source_ref: str = ""
     image: MediaRef | str | None = None
     audio: MediaRef | str | None = None
+    item_id: str = ""
+    identity_seed: str = ""
 
     note_type: ClassVar[str]
 
@@ -121,7 +123,7 @@ class BaseNote:
 
     def _base_dict(self) -> dict[str, Any]:
         result: dict[str, Any] = {"type": self.type, "chinese": self.chinese}
-        for name in ("pinyin", "meaning", "source_ref"):
+        for name in ("pinyin", "meaning", "source_ref", "item_id", "identity_seed"):
             value = getattr(self, name)
             if value:
                 result[name] = value
@@ -169,16 +171,24 @@ class SentenceNote(BaseNote):
 
 @dataclass(frozen=True)
 class ListeningNote(BaseNote):
+    recording_id: str = ""
+    segment_id: str = ""
+
     note_type: ClassVar[str] = "listening"
 
     def to_dict(self) -> dict[str, Any]:
-        return self._base_dict()
+        result = self._base_dict()
+        for name in ("recording_id", "segment_id"):
+            value = getattr(self, name)
+            if value:
+                result[name] = value
+        return result
 
 
 Note = VocabularyNote | SentenceNote | ListeningNote
 
 
-def _note(value: Any, date: str, path: str) -> Note:
+def _note(value: Any, date: str, path: str, *, version: int) -> Note:
     raw = _mapping(value, path)
     note_type = _text(raw.get("type"), f"{path}.type", required=True)
     chinese = _text(raw.get("chinese"), f"{path}.chinese", required=True)
@@ -191,6 +201,8 @@ def _note(value: Any, date: str, path: str) -> Note:
         "source_ref": _text(raw.get("source_ref"), f"{path}.source_ref"),
         "image": MediaRef.from_value(raw.get("image"), f"{path}.image"),
         "audio": MediaRef.from_value(raw.get("audio"), f"{path}.audio"),
+        "item_id": _text(raw.get("item_id"), f"{path}.item_id", required=version == 2 and note_type != "listening"),
+        "identity_seed": _text(raw.get("identity_seed"), f"{path}.identity_seed"),
     }
     if note_type == "vocabulary":
         return VocabularyNote(
@@ -206,7 +218,12 @@ def _note(value: Any, date: str, path: str) -> Note:
             explanation=_text(raw.get("explanation"), f"{path}.explanation"),
         )
     if note_type == "listening":
-        return ListeningNote(**common)
+        common["item_id"] = _text(raw.get("item_id"), f"{path}.item_id")
+        return ListeningNote(
+            **common,
+            recording_id=_text(raw.get("recording_id"), f"{path}.recording_id", required=version == 2),
+            segment_id=_text(raw.get("segment_id"), f"{path}.segment_id", required=version == 2),
+        )
     raise SourceValidationError(f"{path}.type: expected vocabulary, sentence, or listening")
 
 
@@ -220,7 +237,7 @@ class ClassRecord:
     issues: Mapping[str, Any]
 
     @classmethod
-    def from_dict(cls, value: Any, path: str) -> ClassRecord:
+    def from_dict(cls, value: Any, path: str, *, version: int = 1) -> ClassRecord:
         raw = _mapping(value, path)
         class_date = _iso_date(raw.get("date"), f"{path}.date")
         source_files = tuple(
@@ -228,7 +245,7 @@ class ClassRecord:
             for index, item in enumerate(_list(raw.get("source_files", []), f"{path}.source_files"))
         )
         notes = tuple(
-            _note(item, class_date, f"{path}.notes[{index}]")
+            _note(item, class_date, f"{path}.notes[{index}]", version=version)
             for index, item in enumerate(_list(raw.get("notes", []), f"{path}.notes"))
         )
         issues = raw.get("issues", {})
@@ -267,19 +284,33 @@ class ClassSource:
     def from_dict(cls, value: Any) -> ClassSource:
         raw = _mapping(value, "$" )
         version = raw.get("version")
-        if version != 1:
-            raise SourceValidationError("version: expected 1")
+        if version not in (1, 2):
+            raise SourceValidationError("version: expected 1 or 2")
         deck_name = _text(raw.get("deck_name", "Chinese Classes"), "deck_name", required=True)
         if deck_name != "Chinese Classes":
             raise SourceValidationError("deck_name: expected 'Chinese Classes'")
         classes = tuple(
-            ClassRecord.from_dict(item, f"classes[{index}]")
+            ClassRecord.from_dict(item, f"classes[{index}]", version=version)
             for index, item in enumerate(_list(raw.get("classes"), "classes"))
         )
         dates = [item.date for item in classes]
         if len(dates) != len(set(dates)):
             raise SourceValidationError("classes: duplicate class date")
-        return cls(version=1, deck_name=deck_name, classes=classes)
+        if version == 2:
+            item_ids: set[str] = set()
+            segment_ids: set[tuple[str, str]] = set()
+            for record in classes:
+                for note in record.notes:
+                    if isinstance(note, ListeningNote):
+                        segment_key = (note.recording_id, note.segment_id)
+                        if segment_key in segment_ids:
+                            raise SourceValidationError("classes: duplicate recording_id/segment_id")
+                        segment_ids.add(segment_key)
+                    else:
+                        if note.item_id in item_ids:
+                            raise SourceValidationError(f"classes: duplicate item_id {note.item_id!r}")
+                        item_ids.add(note.item_id)
+        return cls(version=version, deck_name=deck_name, classes=classes)
 
     def to_dict(self) -> dict[str, Any]:
         return {

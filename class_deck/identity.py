@@ -43,6 +43,12 @@ def model_id(note_type: str) -> int:
 
 
 def note_key(note: BaseNote) -> str:
+    if note.identity_seed:
+        return note.identity_seed
+    if getattr(note, "recording_id", "") and getattr(note, "segment_id", ""):
+        return f"{note.date}:{note.type}:{note.recording_id}:{note.segment_id}"
+    if note.item_id:
+        return f"{note.date}:{note.type}:{note.item_id}"
     return f"{note.date}:{note.type}:{normalize_chinese(note.primary_chinese)}"
 
 

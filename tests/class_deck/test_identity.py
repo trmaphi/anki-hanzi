@@ -64,6 +64,29 @@ def test_date_and_note_type_change_guid():
     assert note_guid(note) != note_guid(replace(note, type="sentence"))
 
 
+def test_version_two_identity_is_independent_of_mutable_chinese():
+    raw = reviewed_source()
+    raw["version"] = 2
+    raw["classes"][0]["notes"][0]["item_id"] = "folder-22:item-001"
+    note = ClassSource.from_dict(raw).classes[0].notes[0]
+
+    assert note_key(note) == "2026-09-22:vocabulary:folder-22:item-001"
+    assert note_guid(note) == note_guid(replace(note, chinese="重感冒"))
+
+
+def test_identity_seed_reproduces_legacy_guid_after_correction():
+    legacy = vocabulary_note()
+    migrated = replace(
+        legacy,
+        item_id="folder-22:item-001",
+        identity_seed=note_key(legacy),
+        chinese="感冒了",
+    )
+
+    assert note_key(migrated) == "2026-09-22:vocabulary:感冒"
+    assert note_guid(migrated) == note_guid(legacy)
+
+
 def test_media_names_are_unicode_safe_and_collision_resistant():
     first = media_name("2026-09-22:vocabulary:感冒", "image", "Bài học 1.JPG")
     second = media_name("2026-09-22:vocabulary:发烧", "image", "Bài học 1.JPG")

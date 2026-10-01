@@ -1,5 +1,5 @@
 from class_deck.identity import note_guid, note_key
-from class_deck.manifest import ClassManifest, merge_manifest
+from class_deck.manifest import ClassManifest, merge_manifest, migrate_source_identities
 from class_deck.models import ClassSource
 
 
@@ -129,3 +129,14 @@ def test_manifest_serializes_reviewed_content_and_note_keys():
     assert raw["manifest_version"] == 1
     assert raw["classes"][0]["note_keys"] == ["2026-09-22:vocabulary:感冒"]
     assert ClassManifest.from_dict(raw).to_dict() == raw
+
+
+def test_migration_assigns_content_independent_ids_and_legacy_seeds():
+    legacy = parsed(source_for())
+    migrated = migrate_source_identities(legacy)
+    note = migrated.classes[0].notes[0]
+
+    assert migrated.version == 2
+    assert note.item_id == "folder-22:vocabulary:0001"
+    assert note.identity_seed == "2026-09-22:vocabulary:感冒"
+    assert note_guid(note) == note_guid(legacy.classes[0].notes[0])

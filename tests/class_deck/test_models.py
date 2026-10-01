@@ -70,3 +70,33 @@ def test_missing_primary_chinese_is_rejected():
 
     with pytest.raises(SourceValidationError, match=r"classes\[0\]\.notes\[0\]\.chinese"):
         ClassSource.from_dict(raw)
+
+
+def test_version_two_requires_persistent_item_ids():
+    raw = reviewed_source()
+    raw["version"] = 2
+
+    with pytest.raises(SourceValidationError, match=r"classes\[0\]\.notes\[0\]\.item_id"):
+        ClassSource.from_dict(raw)
+
+
+def test_version_two_rejects_duplicate_item_ids():
+    raw = reviewed_source()
+    raw["version"] = 2
+    for note in raw["classes"][0]["notes"]:
+        note["item_id"] = "same-item"
+
+    with pytest.raises(SourceValidationError, match=r"duplicate item_id"):
+        ClassSource.from_dict(raw)
+
+
+def test_listening_requires_unique_recording_segment_identity():
+    raw = reviewed_source()
+    raw["version"] = 2
+    raw["classes"][0]["notes"] = [
+        {"type": "listening", "chinese": "你好", "recording_id": "rec-1", "segment_id": "seg-1"},
+        {"type": "listening", "chinese": "你好吗", "recording_id": "rec-1", "segment_id": "seg-1"},
+    ]
+
+    with pytest.raises(SourceValidationError, match=r"duplicate recording_id/segment_id"):
+        ClassSource.from_dict(raw)
