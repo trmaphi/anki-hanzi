@@ -48,7 +48,9 @@ The offline payload is intentionally large because it includes collision-safe, `
 
 Keep `.class-deck/current/state/manifest.json`. Add the new dated folder to the inventory, review its notes, then run the same build command. The new class becomes `Chinese Classes::YYYY-MM-DD`; existing identities remain unchanged.
 
-**Before the first migration import, back up the complete Anki profile and include scheduling information.** Import the replacement APKG into the same profile with note updates enabled. Anki will update the 320 released notes in place, retain the existing Recognition/Production/Listening scheduling rows, and add Writing as New. Persistent item and segment identities mean later wording, pinyin, or transcript corrections update those notes without resetting progress.
+**Before the first migration import, back up the complete Anki profile and include scheduling information.** This upgrade requires Anki 23.10 or newer. In **File → Import**, expand **Updates**, enable **Merge note types**, and leave **Import any learning progress** and **Import any deck presets** disabled. Keep **Update notes** and **Update note types** set to **If newer**, then import the replacement APKG into the same profile. Anki will merge the extended vocabulary note type, update the 320 released notes in place, retain the existing Recognition/Production/Listening scheduling rows, and add Writing as New. Persistent item and segment identities mean later wording, pinyin, or transcript corrections update those notes without resetting progress.
+
+Do not accept the default import settings for this first upgrade. Without **Merge note types**, Anki treats the extended vocabulary schema as a separate `Chinese Classes - Vocabulary+` note type: the listening notes are added, but the 261 Writing cards are not attached to the existing vocabulary notes. A disposable Desktop test produced 358 notes but only 619 cards in that incorrect state, instead of the expected 358 notes and 880 cards.
 
 Importing an identical package again must add zero notes and zero cards. This workflow never automatically deletes old notes: if a source folder disappears, its previously approved content remains in the manifest and the build report marks the class as missing. Delete superseded notes manually only after confirming that is intentional.
 
@@ -68,7 +70,7 @@ The package itself, source recordings, transcript drafts, manifests, and build r
 
 Before distributing to teachers, use disposable profiles that already contain the old package and record results for Anki Desktop, AnkiDroid, and AnkiMobile:
 
-1. Back up, import with note updates enabled, confirm old due dates/intervals/reps remain and Writing is New, then import the same package again and confirm zero additions.
+1. Back up, expand **Updates**, enable **Merge note types**, leave learning progress and deck presets disabled, confirm old due dates/intervals/reps remain and Writing is New, then import the same package again and confirm zero additions.
 2. With networking disabled, verify vocabulary tone colours, pinyin, Zhuyin, traditional form, writer animation/practice and controls, night mode, field visibility, replay, offline dictionary (including an empty search), and expandable examples.
 3. Verify a word without stroke data remains readable; missing audio never produces a blank front; sentence cards have no vocabulary-only controls; listening fronts are audio-only and backs contain Chinese, pinyin, and replay without translation.
 4. Confirm new-card order is vocabulary, sentence patterns, then listening within each dated deck.
@@ -79,7 +81,7 @@ Automated APKG/SQLite checks are not substitutes for these client tests. In part
 
 | Client | Migration/import | Repeated import | Offline feature smoke test | Status |
 | --- | --- | --- | --- | --- |
-| Anki Desktop (macOS) | In a disposable profile, imported the 320-note pre-unified package and then the 358-note unified package; the upgrade import identified the 38 listening notes as added | A second unified import showed existing entries as `Skipped` rather than adding duplicates | Not yet completed for every vocabulary, sentence, listening, degraded-stroke, and missing-audio case | Partial |
+| Anki Desktop (macOS) | Verified the 320-note baseline → unified migration with **Merge note types** enabled: 358 notes and 880 cards, including all 261 Writing cards on the original vocabulary note type. A reviewed baseline card retained its exact card ID, due value, 5-day interval, ease, review count, and lapse count after re-import. The default import was also tested and is documented as invalid (358 notes/619 cards plus `Chinese Classes - Vocabulary+`). | A second unified import showed all 358 entries as `Skipped`, kept the collection at 358 notes/880 cards, and preserved the reviewed card's scheduling row | Vocabulary answer rendered simplified text, pinyin, meaning, expandable definitions/examples, replay/menu controls, and the writing panel. Remaining sentence, listening, offline/degraded-stroke, missing-audio, night-mode, and interactive-control cases are not yet complete. | Partial |
 | AnkiDroid | No Android device/client was available in this environment | Not run | Not run | Unverified |
 | AnkiMobile | No iOS device/client was available in this environment | Not run | Not run | Unverified |
 

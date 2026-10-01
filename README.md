@@ -66,6 +66,9 @@ Import via **File → Import** in Anki.
 
 > [!WARNING]
 > Make a backup of your collection (with scheduling information) before importing.
+> When upgrading the generated `Chinese-Classes.apkg`, use Anki 23.10 or newer,
+> expand **Updates**, enable **Merge note types**, and leave learning progress and
+> deck presets disabled. See the [class-deck migration instructions](docs/class-deck-generator.md#add-a-later-class-without-losing-progress).
 
 ## Build your own deck — Create tool
 
