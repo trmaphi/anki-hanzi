@@ -87,4 +87,6 @@ Automated APKG/SQLite checks are not substitutes for these client tests. In part
 
 The artifact is therefore structurally verified and importable on Anki Desktop, but it is **not yet cleared as fully post-deployment verified on all three clients**. Complete the remaining matrix before broad teacher distribution.
 
+The remaining Desktop cases could not be completed through this environment's UI automation. Anki 26.09.2 was launched directly into the disposable profile with add-ons and sync disabled, but opening Browse through the accessibility bridge terminated the process with repeated Qt `Called attribute on invalid object` errors. This is a verification-harness limitation, not evidence of a deck failure; the original `User 1` profile was reopened unchanged. The sentence/listening, offline interaction, night-mode, and degraded-media cases still require a manual pass in Anki Desktop.
+
 The `.class-deck/` working data and generated `output/class-decks/` package are private local artifacts and are excluded from Git.

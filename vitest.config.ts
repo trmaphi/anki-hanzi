@@ -2,6 +2,12 @@ import { defineConfig } from 'vitest/config';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import path from 'node:path';
 
+// Node 26 exposes a global localStorage getter that returns undefined unless a
+// storage file is configured. Let jsdom provide storage in DOM test workers.
+process.env.NODE_OPTIONS = [process.env.NODE_OPTIONS, '--no-experimental-webstorage']
+	.filter(Boolean)
+	.join(' ');
+
 // Aliases: $lib → src/lib, plus tiny stubs for the SvelteKit `$app/*` modules
 // the components import (`base`, `goto`, `page`), so they resolve outside the
 // SvelteKit dev server.
