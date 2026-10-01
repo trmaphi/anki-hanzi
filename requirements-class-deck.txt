@@ -1,5 +1,6 @@
 genanki==0.13.1
 faster-whisper==1.2.1
+av<19
 pypinyin==0.55.0
 Pillow==12.0.0
 PyMuPDF==1.26.4
