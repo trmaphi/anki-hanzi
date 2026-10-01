@@ -12,16 +12,19 @@ from class_deck.package import MODEL_IDS
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
-def run_build(tmp_path, source=FIXTURES / "source.json", output=None):
+def run_build(tmp_path, source=FIXTURES / "source.json", output=None, baseline=None):
     output = output or tmp_path / "Chinese-Classes.apkg"
     state = tmp_path / "state"
-    exit_code = main([
+    arguments = [
         "build",
         "--source", str(source),
         "--media", str(FIXTURES / "media"),
         "--state", str(state),
         "--out", str(output),
-    ])
+    ]
+    if baseline is not None:
+        arguments.extend(["--baseline", str(baseline)])
+    exit_code = main(arguments)
     return exit_code, output, state
 
 
@@ -233,3 +236,22 @@ def test_transcribe_retains_unmatched_recording_in_review_report(tmp_path, monke
         "uncertainties": [],
         "segments": [],
     }
+
+
+def test_build_blocks_incompatible_baseline_before_replacing_output(tmp_path, monkeypatch):
+    from class_deck.compatibility import CompatibilityError
+
+    output = tmp_path / "Chinese-Classes.apkg"
+    output.write_bytes(b"previous")
+    baseline = tmp_path / "baseline.apkg"
+    baseline.write_bytes(b"baseline")
+
+    def reject(*_args, **_kwargs):
+        raise CompatibilityError("released card scheduling changed")
+
+    monkeypatch.setattr(cli, "compare_collections", reject)
+    exit_code, _, state = run_build(tmp_path, output=output, baseline=baseline)
+
+    assert exit_code == 2
+    assert output.read_bytes() == b"previous"
+    assert not (state / "build-report.json").exists()

@@ -21,6 +21,7 @@ from .audio import AudioError, export_segment
 from .transcribe import FasterWhisperTranscriber, TranscriptionError, transcribe_recording
 from .review import recording_review_dict
 from .assets import ASSETS
+from .compatibility import CompatibilityError, CompatibilityReport, compare_collections
 
 
 class PackageValidationError(ValueError):
@@ -243,7 +244,12 @@ def _check_source(source: ClassSource, media_root: Path) -> dict[str, Any]:
     }
 
 
-def _report_dict(report: BuildReport, validation: dict[str, Any], merge: Any) -> dict[str, Any]:
+def _report_dict(
+    report: BuildReport,
+    validation: dict[str, Any],
+    merge: Any,
+    compatibility: CompatibilityReport | None = None,
+) -> dict[str, Any]:
     value = asdict(report)
     value["media"] = list(report.media)
     value["warnings"] = list(report.warnings)
@@ -254,6 +260,8 @@ def _report_dict(report: BuildReport, validation: dict[str, Any], merge: Any) ->
         "missing_classes": list(merge.missing_classes),
         "unchanged_classes": list(merge.unchanged_classes),
     }
+    if compatibility is not None:
+        value["compatibility"] = asdict(compatibility)
     return value
 
 
@@ -273,6 +281,11 @@ def _build(arguments: argparse.Namespace) -> int:
     try:
         report = build_package(merged.source, media_root, candidate)
         validation = inspect_package(candidate, report, merged.source)
+        compatibility = None
+        if arguments.baseline:
+            compatibility = compare_collections(
+                Path(arguments.baseline), candidate, require_schedule=False
+            )
         expected_decks = {class_deck_name(record.date) for record in merged.source.classes if record.approved}
         actual_decks = set(validation["decks"])
         absent = sorted(expected_decks - actual_decks)
@@ -280,7 +293,10 @@ def _build(arguments: argparse.Namespace) -> int:
             raise PackageValidationError(f"approved class decks missing: {absent}")
         manifest = ClassManifest.from_source(merged.source)
         _atomic_json(state / "manifest.json", manifest.to_dict())
-        _atomic_json(state / "build-report.json", _report_dict(report, validation, merged))
+        _atomic_json(
+            state / "build-report.json",
+            _report_dict(report, validation, merged, compatibility),
+        )
         os.replace(candidate, output)
     finally:
         if candidate.exists():
@@ -336,6 +352,7 @@ def _parser() -> argparse.ArgumentParser:
     build.add_argument("--media", required=True)
     build.add_argument("--state", required=True)
     build.add_argument("--out", required=True)
+    build.add_argument("--baseline")
     transcribe = commands.add_parser("transcribe", help="draft sentence-level listening segments")
     transcribe.add_argument("--source", required=True)
     transcribe.add_argument("--recording-id", required=True)
@@ -353,7 +370,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if arguments.command == "transcribe":
             return _transcribe(arguments)
         return _build(arguments)
-    except (AudioError, PackageBuildError, SourceValidationError, PackageValidationError, TranscriptionError, OSError) as exc:
+    except (AudioError, CompatibilityError, PackageBuildError, SourceValidationError, PackageValidationError, TranscriptionError, OSError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 2
 
