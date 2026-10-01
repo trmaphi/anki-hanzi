@@ -76,13 +76,13 @@ def _fields_for(note: BaseNote, image: str, audio: str) -> list[str]:
             audio,
             note.date,
             note.source_ref,
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
+            note.zhuyin,
+            note.part_of_speech,
+            note.definitions,
+            note.breakdown,
+            note.radical,
+            note.hsk_level,
+            note.frequency,
         ]
     if isinstance(note, SentenceNote):
         return [

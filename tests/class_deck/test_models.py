@@ -100,3 +100,18 @@ def test_listening_requires_unique_recording_segment_identity():
 
     with pytest.raises(SourceValidationError, match=r"duplicate recording_id/segment_id"):
         ClassSource.from_dict(raw)
+
+
+def test_vocabulary_enrichment_fields_round_trip():
+    raw = reviewed_source()
+    raw["classes"][0]["notes"][0].update({
+        "zhuyin": "ㄍㄢˇ ㄇㄠˋ",
+        "part_of_speech": "verb",
+        "definitions": "common cold",
+        "breakdown": "感 + 冒",
+        "radical": "心",
+        "hsk_level": "HSK 3",
+        "frequency": "2814",
+    })
+
+    assert ClassSource.from_dict(raw).to_dict() == raw

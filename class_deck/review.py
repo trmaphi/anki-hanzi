@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace as dataclass_replace
 from pathlib import Path
 from typing import Any
 
@@ -8,6 +8,8 @@ import fitz
 from PIL import Image, ImageOps, ImageDraw
 
 from .ingest import ClassInventory, DriveItem, Inventory
+from .enrichment import EnrichmentAssets, EnrichmentResult, enrich_note
+from .models import ClassSource
 
 
 IMAGE_MIMES = {"image/jpeg", "image/png", "image/webp"}
@@ -159,3 +161,20 @@ def prepare_review(inventory: Inventory, media_root: Path) -> ReviewDraft:
             )
         )
     return ReviewDraft(inventory=inventory, classes=tuple(drafts))
+
+
+def enrich_reviewed_source(
+    source: ClassSource,
+    assets: EnrichmentAssets,
+) -> tuple[ClassSource, tuple[EnrichmentResult, ...]]:
+    results = tuple(
+        enrich_note(note, assets)
+        for record in source.classes
+        for note in record.notes
+    )
+    iterator = iter(results)
+    classes = tuple(
+        dataclass_replace(record, notes=tuple(next(iterator).note for _ in record.notes))
+        for record in source.classes
+    )
+    return dataclass_replace(source, classes=classes), results

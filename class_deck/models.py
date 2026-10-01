@@ -141,12 +141,23 @@ class VocabularyNote(BaseNote):
     traditional: str = ""
     example: str = ""
     example_translation: str = ""
+    zhuyin: str = ""
+    part_of_speech: str = ""
+    definitions: str = ""
+    breakdown: str = ""
+    radical: str = ""
+    hsk_level: str = ""
+    frequency: str = ""
 
     note_type: ClassVar[str] = "vocabulary"
 
     def to_dict(self) -> dict[str, Any]:
         result = self._base_dict()
-        for name in ("traditional", "example", "example_translation"):
+        for name in (
+            "traditional", "example", "example_translation", "zhuyin",
+            "part_of_speech", "definitions", "breakdown", "radical",
+            "hsk_level", "frequency",
+        ):
             value = getattr(self, name)
             if value:
                 result[name] = value
@@ -210,6 +221,13 @@ def _note(value: Any, date: str, path: str, *, version: int) -> Note:
             traditional=_text(raw.get("traditional"), f"{path}.traditional"),
             example=_text(raw.get("example"), f"{path}.example"),
             example_translation=_text(raw.get("example_translation"), f"{path}.example_translation"),
+            zhuyin=_text(raw.get("zhuyin"), f"{path}.zhuyin"),
+            part_of_speech=_text(raw.get("part_of_speech"), f"{path}.part_of_speech"),
+            definitions=_text(raw.get("definitions"), f"{path}.definitions"),
+            breakdown=_text(raw.get("breakdown"), f"{path}.breakdown"),
+            radical=_text(raw.get("radical"), f"{path}.radical"),
+            hsk_level=_text(raw.get("hsk_level"), f"{path}.hsk_level"),
+            frequency=_text(raw.get("frequency"), f"{path}.frequency"),
         )
     if note_type == "sentence":
         return SentenceNote(
