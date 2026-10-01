@@ -12,7 +12,8 @@ from class_deck.package import build_package
 
 
 ROOT = Path(__file__).parents[2]
-BASELINE = ROOT / "output/class-decks/Chinese-Classes.apkg"
+PRE_UNIFIED = ROOT / "output/class-decks/Chinese-Classes.pre-unified.apkg"
+BASELINE = PRE_UNIFIED if PRE_UNIFIED.is_file() else ROOT / "output/class-decks/Chinese-Classes.apkg"
 SOURCE = ROOT / ".class-deck/current/reviewed-source.json"
 MEDIA = ROOT / ".class-deck/current/media"
 
@@ -60,15 +61,22 @@ def upgrade_collections(tmp_path_factory):
 
 def test_seeded_upgrade_preserves_all_released_progress(upgrade_collections):
     before, after, report = upgrade_collections
+    source = ClassSource.from_dict(json.loads(SOURCE.read_text(encoding="utf-8")))
+    listening_notes = sum(
+        note.type == "listening"
+        for record in source.classes
+        for note in record.notes
+    )
 
     result = compare_collections(before, after)
 
     assert result.preserved_notes == 320
     assert result.preserved_cards == 581
-    assert result.new_notes == 0
-    assert result.new_cards == result.new_writing_cards == 261
-    assert report.notes == 320
-    assert report.cards == 842
+    assert result.new_notes == listening_notes
+    assert result.new_writing_cards == 261
+    assert result.new_cards == result.new_writing_cards + listening_notes
+    assert report.notes == 320 + listening_notes
+    assert report.cards == 842 + listening_notes
 
 
 def test_second_identical_import_has_zero_duplicates(upgrade_collections):
