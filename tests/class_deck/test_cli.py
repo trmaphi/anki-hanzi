@@ -80,7 +80,7 @@ def test_build_writes_package_manifest_and_report(tmp_path):
     report = json.loads((state / "build-report.json").read_text())
     assert manifest["manifest_version"] == 1
     assert report["notes"] == 5
-    assert report["cards"] == 9
+    assert report["cards"] == 11
     assert report["validation"]["integrity"] == "ok"
     assert report["output_sha256"]
 
@@ -134,7 +134,7 @@ def test_build_report_records_progress_preservation_invariants(tmp_path):
     assert exit_code == 0
     validation = json.loads((state / "build-report.json").read_text())["validation"]
     assert validation["template_ordinals"] == {
-        str(MODEL_IDS["vocabulary"]): [0, 1, 2],
+        str(MODEL_IDS["vocabulary"]): [0, 1, 2, 3],
         str(MODEL_IDS["sentence"]): [0, 1],
         str(MODEL_IDS["listening"]): [0],
     }

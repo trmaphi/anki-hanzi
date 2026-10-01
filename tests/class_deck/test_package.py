@@ -58,9 +58,9 @@ def test_vocabulary_has_recognition_production_and_conditional_listening(built, 
     by_chinese = {}
     for fields, ordinal in vocabulary_cards:
         by_chinese.setdefault(fields.split("\x1f")[0], []).append(ordinal)
-    assert by_chinese["感冒"] == [0, 1, 2]
-    assert by_chinese["发烧"] == [0, 1]
-    assert report.cards == 9
+    assert by_chinese["感冒"] == [0, 1, 2, 3]
+    assert by_chinese["发烧"] == [0, 1, 3]
+    assert report.cards == 11
 
 
 def test_sentence_and_listening_models_have_fixed_ordinals(built, tmp_path):
@@ -143,7 +143,7 @@ def test_collection_database_round_trip(built, tmp_path):
 
     assert database.execute("pragma integrity_check").fetchone()[0] == "ok"
     assert database.execute("select count(*) from notes").fetchone()[0] == report.notes == 5
-    assert database.execute("select count(*) from cards").fetchone()[0] == report.cards == 9
+    assert database.execute("select count(*) from cards").fetchone()[0] == report.cards == 11
     assert database.execute("select count(distinct guid) from notes").fetchone()[0] == 5
     tags = " ".join(row[0] for row in database.execute("select tags from notes"))
     assert "Class::2026-09-22" in tags

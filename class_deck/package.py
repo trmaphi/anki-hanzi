@@ -76,6 +76,13 @@ def _fields_for(note: BaseNote, image: str, audio: str) -> list[str]:
             audio,
             note.date,
             note.source_ref,
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
         ]
     if isinstance(note, SentenceNote):
         return [
@@ -131,7 +138,7 @@ def build_package(source: ClassSource, media_root: Path, output: Path) -> BuildR
                 deck.add_note(anki_note)
                 note_count += 1
                 if isinstance(note, VocabularyNote):
-                    card_count += 2 + bool(audio)
+                    card_count += 3 + bool(audio)
                 elif isinstance(note, SentenceNote):
                     card_count += 1 + bool(audio)
                 else:

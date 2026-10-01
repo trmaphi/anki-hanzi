@@ -58,7 +58,7 @@ def _atomic_json(path: Path, value: Any) -> None:
 
 
 EXPECTED_ORDINALS = {
-    MODEL_IDS["vocabulary"]: (0, 1, 2),
+    MODEL_IDS["vocabulary"]: (0, 1, 2, 3),
     MODEL_IDS["sentence"]: (0, 1),
     MODEL_IDS["listening"]: (0,),
 }
