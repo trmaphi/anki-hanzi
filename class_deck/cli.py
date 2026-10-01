@@ -16,6 +16,9 @@ from .identity import PARENT_DECK, class_deck_id, class_deck_name, note_guid
 from .manifest import ClassManifest, merge_manifest
 from .models import ClassSource, MediaRef, SourceValidationError
 from .package import BuildReport, MODEL_IDS, build_package
+from .audio import AudioError, export_segment
+from .transcribe import FasterWhisperTranscriber, TranscriptionError, transcribe_recording
+from .review import recording_review_dict
 
 
 class PackageValidationError(ValueError):
@@ -262,6 +265,32 @@ def _check(arguments: argparse.Namespace) -> int:
     return 0
 
 
+def _transcribe(arguments: argparse.Namespace) -> int:
+    source = Path(arguments.source)
+    segments = transcribe_recording(
+        source,
+        arguments.recording_id,
+        arguments.model,
+        FasterWhisperTranscriber(),
+    )
+    clips = Path(arguments.clips)
+    clip_paths = []
+    for segment in segments:
+        clip = clips / f"{segment.segment_id.replace(':', '-')}.mp3"
+        export_segment(source, segment, clip)
+        clip_paths.append(clip)
+    value = recording_review_dict(
+        arguments.recording_id,
+        source,
+        arguments.model,
+        segments,
+        tuple(clip_paths),
+    )
+    _atomic_json(Path(arguments.out), value)
+    print(f"Transcribed {source}: {len(segments)} review segments")
+    return 0
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Build an incremental Chinese Classes Anki deck")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -273,6 +302,12 @@ def _parser() -> argparse.ArgumentParser:
     build.add_argument("--media", required=True)
     build.add_argument("--state", required=True)
     build.add_argument("--out", required=True)
+    transcribe = commands.add_parser("transcribe", help="draft sentence-level listening segments")
+    transcribe.add_argument("--source", required=True)
+    transcribe.add_argument("--recording-id", required=True)
+    transcribe.add_argument("--model", required=True)
+    transcribe.add_argument("--out", required=True)
+    transcribe.add_argument("--clips", required=True)
     return parser
 
 
@@ -281,8 +316,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         arguments = _parser().parse_args(argv)
         if arguments.command == "check":
             return _check(arguments)
+        if arguments.command == "transcribe":
+            return _transcribe(arguments)
         return _build(arguments)
-    except (SourceValidationError, PackageValidationError, OSError) as exc:
+    except (AudioError, SourceValidationError, PackageValidationError, TranscriptionError, OSError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 2
 

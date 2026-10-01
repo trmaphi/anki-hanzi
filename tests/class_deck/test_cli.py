@@ -176,3 +176,60 @@ def test_second_build_adds_class_without_changing_existing_ids(tmp_path):
     added_name = class_deck_name("2026-10-01")
     assert second_decks[added_name] == class_deck_id(added_name)
     assert json.loads((state / "build-report.json").read_text())["merge"]["new_classes"] == ["2026-10-01"]
+
+
+def test_transcribe_writes_reviewable_unapproved_segments(tmp_path, monkeypatch):
+    source = tmp_path / "recording.mp3"
+    source.write_bytes(b"audio")
+    output = tmp_path / "review.json"
+    clips = tmp_path / "clips"
+
+    class FakeTranscriber:
+        def transcribe(self, source, *, model_name, language):
+            from class_deck.transcribe import AsrSegment
+            return (AsrSegment(0, 1000, "你好。", 0.75),)
+
+    monkeypatch.setattr(cli, "FasterWhisperTranscriber", FakeTranscriber)
+    def fake_export(_source, _segment, target):
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(b"clip")
+        return target
+    monkeypatch.setattr(cli, "export_segment", fake_export)
+    exit_code = main([
+        "transcribe", "--source", str(source), "--recording-id", "drive-audio-1",
+        "--model", "small", "--out", str(output), "--clips", str(clips),
+    ])
+
+    assert exit_code == 0
+    review = json.loads(output.read_text())
+    assert review["recording_id"] == "drive-audio-1"
+    assert review["source"] == str(source)
+    assert review["segments"][0]["approved"] is False
+    assert review["segments"][0]["chinese"] == "你好。"
+    assert Path(review["segments"][0]["clip_path"]).read_bytes() == b"clip"
+
+
+def test_transcribe_retains_unmatched_recording_in_review_report(tmp_path, monkeypatch):
+    source = tmp_path / "silent.mp3"
+    source.write_bytes(b"audio")
+    output = tmp_path / "review.json"
+
+    class EmptyTranscriber:
+        def transcribe(self, source, *, model_name, language):
+            return ()
+
+    monkeypatch.setattr(cli, "FasterWhisperTranscriber", EmptyTranscriber)
+    exit_code = main([
+        "transcribe", "--source", str(source), "--recording-id", "unmatched-1",
+        "--model", "small", "--out", str(output), "--clips", str(tmp_path / "clips"),
+    ])
+
+    assert exit_code == 0
+    assert json.loads(output.read_text()) == {
+        "recording_id": "unmatched-1",
+        "source": str(source),
+        "model": "small",
+        "matched": False,
+        "uncertainties": [],
+        "segments": [],
+    }

@@ -10,6 +10,7 @@ from PIL import Image, ImageOps, ImageDraw
 from .ingest import ClassInventory, DriveItem, Inventory
 from .enrichment import EnrichmentAssets, EnrichmentResult, enrich_note
 from .models import ClassSource
+from .audio import AudioSegment
 
 
 IMAGE_MIMES = {"image/jpeg", "image/png", "image/webp"}
@@ -178,3 +179,27 @@ def enrich_reviewed_source(
         for record in source.classes
     )
     return dataclass_replace(source, classes=classes), results
+
+
+def recording_review_dict(
+    recording_id: str,
+    source: Path,
+    model: str,
+    segments: tuple[AudioSegment, ...],
+    clip_paths: tuple[Path, ...],
+) -> dict[str, Any]:
+    if len(segments) != len(clip_paths):
+        raise ValueError("segments and clip_paths must have equal lengths")
+    values = []
+    for segment, clip_path in zip(segments, clip_paths):
+        raw = segment.to_dict()
+        raw["clip_path"] = str(clip_path)
+        values.append(raw)
+    return {
+        "recording_id": recording_id,
+        "source": str(source),
+        "model": model,
+        "matched": bool(segments),
+        "uncertainties": [segment.segment_id for segment in segments if segment.confidence < 0.8],
+        "segments": values,
+    }
