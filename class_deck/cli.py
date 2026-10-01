@@ -19,6 +19,7 @@ from .package import BuildReport, MODEL_IDS, build_package
 from .audio import AudioError, export_segment
 from .transcribe import FasterWhisperTranscriber, TranscriptionError, transcribe_recording
 from .review import recording_review_dict
+from .assets import ASSETS
 
 
 class PackageValidationError(ValueError):
@@ -149,9 +150,15 @@ def inspect_package(
     for _, fields, _ in note_rows:
         referenced_names.update(re.findall(r"\[sound:([^\]]+)\]", fields))
         referenced_names.update(re.findall(r'<img src="([^"]+)">', fields))
-    if referenced_names != mapped_names:
+    asset_names = {packaged for _, packaged in ASSETS.values()}
+    if not asset_names <= mapped_names:
         raise PackageValidationError(
-            f"media reference mismatch: fields={sorted(referenced_names)}, map={sorted(mapped_names)}"
+            f"required offline assets missing from media map: {sorted(asset_names - mapped_names)}"
+        )
+    if referenced_names != mapped_names - asset_names:
+        raise PackageValidationError(
+            f"media reference mismatch: fields={sorted(referenced_names)}, "
+            f"note-media={sorted(mapped_names - asset_names)}"
         )
     deck_names = sorted(deck_ids)
     return {

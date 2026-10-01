@@ -19,8 +19,11 @@ REQUIRED_MEDIA = (
     "cedict",
     "sentences",
     "sqlWasm",
+    "offlineRuntime",
 )
-MEDIA_REFERENCE = re.compile(r"(?<![\w.-])(cdx1-[A-Za-z0-9_.-]+)")
+MEDIA_REFERENCE = re.compile(
+    r"(?<![\w.-])(cdx1-[A-Za-z0-9_.-]+\.(?:json|wasm|zip|css|mp3|png|jpe?g|webp|js))(?![A-Za-z0-9_.-])"
+)
 
 
 class BundleValidationError(ValueError):

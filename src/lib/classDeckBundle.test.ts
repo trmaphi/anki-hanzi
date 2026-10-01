@@ -30,7 +30,8 @@ describe('class deck bundle contract', () => {
 			hanziWriterData: 'cdx1-hanzi-writer-data.json',
 			cedict: 'cdx1-cedict.db.zip',
 			sentences: 'cdx1-hsk-sentences.db.zip',
-			sqlWasm: 'cdx1-sql-wasm.wasm'
+			sqlWasm: 'cdx1-sql-wasm.wasm',
+			offlineRuntime: 'cdx1-offline-runtime.js'
 		});
 		const markup = Object.values(value.models)
 			.flatMap((model) => model.templates.flatMap((template) => [template.qfmt, template.afmt]))
@@ -38,6 +39,17 @@ describe('class deck bundle contract', () => {
 		expect(markup).not.toMatch(/(?:src|fetch\()=["']?_(?:anki|hanzi)/);
 		expect(markup).not.toContain('_hanzi-writer.min.js');
 		expect(markup).not.toContain('_hanzi-writer-data.json');
+	});
+
+	it('keeps offline study controls on vocabulary cards only', () => {
+		const value = bundle();
+		for (const template of value.models.vocabulary.templates) {
+			expect(template.afmt).toContain('cdx1-offline-runtime.js');
+			expect(template.afmt).toContain('Offline dictionary & examples');
+		}
+		for (const model of [value.models.sentence, value.models.listening]) {
+			for (const template of model.templates) expect(template.qfmt + template.afmt).not.toContain('cdx1-study');
+		}
 	});
 
 	it('keeps writer vocabulary only', () => {

@@ -13,6 +13,7 @@ import genanki
 from .identity import PARENT_DECK, class_deck_id, class_deck_name, media_name, note_guid, note_key
 from .models import BaseNote, ClassSource, ListeningNote, MediaRef, SentenceNote, VocabularyNote
 from .templates import MODEL_IDS, build_models
+from .assets import build_asset_manifest, stage_assets
 
 
 @dataclass(frozen=True)
@@ -115,6 +116,9 @@ def build_package(source: ClassSource, media_root: Path, output: Path) -> BuildR
 
     with tempfile.TemporaryDirectory(prefix="class-deck-media-") as temp_media:
         staging = Path(temp_media)
+        asset_manifest = build_asset_manifest(Path(__file__).parents[1])
+        for path in stage_assets(asset_manifest, staging):
+            media_files[path.name] = path
         for class_record in sorted(source.classes, key=lambda item: item.date):
             if not class_record.approved:
                 warnings.append(f"{class_record.date}: class is not approved")

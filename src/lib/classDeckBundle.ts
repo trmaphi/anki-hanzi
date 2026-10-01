@@ -40,6 +40,7 @@ export interface ClassDeckBundleV1 {
 		cedict: string;
 		sentences: string;
 		sqlWasm: string;
+		offlineRuntime: string;
 	};
 	writerControls: {
 		drawSize: { default: number; min: number; max: number };
@@ -89,8 +90,22 @@ const MEDIA: ClassDeckBundleV1['media'] = {
 	hanziWriterData: 'cdx1-hanzi-writer-data.json',
 	cedict: 'cdx1-cedict.db.zip',
 	sentences: 'cdx1-hsk-sentences.db.zip',
-	sqlWasm: 'cdx1-sql-wasm.wasm'
+	sqlWasm: 'cdx1-sql-wasm.wasm',
+	offlineRuntime: 'cdx1-offline-runtime.js'
 };
+
+const OFFLINE_STUDY = `
+<details class="cdx1-study"><summary>Offline dictionary & examples</summary>
+<span id="cdx1-query" hidden>{{Chinese}}</span>
+<button type="button" onclick="cdx1Dictionary()">Dictionary</button>
+<button type="button" onclick="cdx1Examples(0)">Examples</button>
+<div id="cdx1-results" class="cdx1-results"></div>
+</details>
+<script src="cdx1-offline-runtime.js"></script>
+<script>
+async function cdx1Dictionary(){var q=document.getElementById('cdx1-query').textContent;var r=await CDX1Offline.searchDictionary(q,20);document.getElementById('cdx1-results').innerHTML=r.html;}
+async function cdx1Examples(offset){var q=document.getElementById('cdx1-query').textContent;var r=await CDX1Offline.loadExamplePage(q,offset||0,10);var e=document.getElementById('cdx1-results');e.innerHTML=(offset?e.innerHTML:'')+r.html;var b=e.querySelector('[data-offset]');if(b)b.onclick=function(){cdx1Examples(Number(b.dataset.offset));};}
+</script>`;
 
 const ENGINE_FIELDS = [
 	'Simplified',
@@ -252,7 +267,7 @@ export function buildClassDeckBundle(): ClassDeckBundleV1 {
 	});
 	const vocabularyTemplates = compiled.tmpls.map((template, ord) => {
 		let qfmt = adapt(template.qfmt);
-		let afmt = adapt(template.afmt);
+		let afmt = adapt(template.afmt) + OFFLINE_STUDY;
 		if (ord === 2) qfmt = '<div class="audio-only">{{Audio}}</div>';
 		const req: [number, 'all', number[]] = [ord, 'all', [ord === 2 ? 7 : 0]];
 		return asTemplate(ord, template.name, qfmt, afmt, req);

@@ -9,6 +9,7 @@ import pytest
 from class_deck.models import ClassSource
 from class_deck.package import MODEL_IDS, build_package
 from class_deck.templates import build_models
+from class_deck.assets import ASSETS
 
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -133,8 +134,10 @@ def test_media_names_resolve_without_collisions(built, tmp_path):
     }
     image_names = {name for name in mapped_names if name.endswith(".jpg")}
     assert len(image_names) == 2
-    assert len(report.media) == 5
-    assert referenced == mapped_names
+    asset_names = {packaged for _, packaged in ASSETS.values()}
+    assert asset_names <= mapped_names
+    assert len(report.media) == 5 + len(asset_names)
+    assert referenced == mapped_names - asset_names
 
 
 def test_collection_database_round_trip(built, tmp_path):
@@ -149,3 +152,9 @@ def test_collection_database_round_trip(built, tmp_path):
     assert "Class::2026-09-22" in tags
     assert "Class::2026-09-29" in tags
     assert "Type::Vocabulary" in tags
+
+
+def test_package_stays_inside_release_size_target(built):
+    output, _ = built
+
+    assert output.stat().st_size <= 60 * 1024 * 1024
