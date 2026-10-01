@@ -75,4 +75,14 @@ Before distributing to teachers, use disposable profiles that already contain th
 
 Automated APKG/SQLite checks are not substitutes for these client tests. In particular, record any AnkiMobile or AnkiDroid WebView limitation involving JavaScript, SQL/Wasm loading, media size, or sync before release rather than silently removing the affected feature.
 
+### Observed client status (2026-10-01)
+
+| Client | Migration/import | Repeated import | Offline feature smoke test | Status |
+| --- | --- | --- | --- | --- |
+| Anki Desktop (macOS) | In a disposable profile, imported the 320-note pre-unified package and then the 358-note unified package; the upgrade import identified the 38 listening notes as added | A second unified import showed existing entries as `Skipped` rather than adding duplicates | Not yet completed for every vocabulary, sentence, listening, degraded-stroke, and missing-audio case | Partial |
+| AnkiDroid | No Android device/client was available in this environment | Not run | Not run | Unverified |
+| AnkiMobile | No iOS device/client was available in this environment | Not run | Not run | Unverified |
+
+The artifact is therefore structurally verified and importable on Anki Desktop, but it is **not yet cleared as fully post-deployment verified on all three clients**. Complete the remaining matrix before broad teacher distribution.
+
 The `.class-deck/` working data and generated `output/class-decks/` package are private local artifacts and are excluded from Git.
